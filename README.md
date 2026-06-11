@@ -6,14 +6,15 @@
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge\&logo=terraform\&logoColor=white)
 ![Amazon ECR](https://img.shields.io/badge/Amazon_ECR-Container_Registry-FF9900?style=for-the-badge\&logo=amazonaws\&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge\&logo=githubactions\&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-Security_Scanning-1904DA?style=for-the-badge\&logo=aqua\&logoColor=white)
 ![React](https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge\&logo=react\&logoColor=black)
 ![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge\&logo=flask\&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge\&logo=postgresql\&logoColor=white)
 ![NGINX](https://img.shields.io/badge/NGINX-Ingress-009639?style=for-the-badge\&logo=nginx\&logoColor=white)
 
-CloudCart is a production-style 3-tier DevOps platform built with React, Flask, PostgreSQL, Docker, Kubernetes, Terraform, Amazon ECR, Amazon EKS, and GitHub Actions.
+CloudCart is a production-style 3-tier DevOps platform built with React, Flask, PostgreSQL, Docker, Kubernetes, Terraform, Amazon ECR, Amazon EKS, GitHub Actions, AWS OIDC, and Trivy.
 
-The project demonstrates the complete lifecycle of a cloud-native application: containerization, local orchestration with Docker Compose, Kubernetes deployment, ingress routing, health and readiness checks, metrics exposure, CPU-based autoscaling, Terraform-based AWS infrastructure provisioning, ECR image publishing, secure CI/CD with GitHub Actions OIDC, and optional deployment to Amazon EKS.
+The project demonstrates the complete lifecycle of a cloud-native application: containerization, local orchestration with Docker Compose, Kubernetes deployment, ingress routing, health and readiness checks, metrics exposure, CPU-based autoscaling, Terraform-based AWS infrastructure provisioning, S3 remote state management, ECR image publishing, secure CI/CD with GitHub Actions OIDC, container image vulnerability scanning, and optional deployment to Amazon EKS.
 
 ---
 
@@ -64,7 +65,10 @@ The project demonstrates the complete lifecycle of a cloud-native application: c
 * Verified HPA autoscaling on EKS with backend replicas scaling from 2 to 6.
 * Built a GitHub Actions CI pipeline using AWS OIDC without long-lived access keys.
 * Automated Docker image build and push to Amazon ECR.
+* Added Terraform formatting and validation checks in CI.
+* Added Trivy vulnerability scanning for backend and frontend container images.
 * Added optional manual CD deployment to EKS using GitHub Actions workflow dispatch.
+* Added proof screenshots for local Kubernetes, AWS EKS, HPA, ECR publishing, and CI security scanning.
 
 ---
 
@@ -157,7 +161,9 @@ Amazon EKS
 GitHub Actions
     |
     |-- OIDC authentication to AWS
+    |-- Terraform validation
     |-- Docker build
+    |-- Trivy image scanning
     |-- ECR push
     |-- Optional EKS deployment
 ```
@@ -176,8 +182,9 @@ GitHub Actions
 | Orchestration          | Kubernetes, Amazon EKS                                                 |
 | Infrastructure as Code | Terraform                                                              |
 | Terraform State        | Amazon S3 remote backend with native state locking                     |
-| CI/CD                  | GitHub Actions                                                         |
+| CI/CD                  | GitHub Actions, Terraform validation, Trivy image scanning             |
 | Cloud Authentication   | GitHub Actions OIDC, AWS IAM Role                                      |
+| Security Scanning      | Trivy                                                                  |
 | Routing                | NGINX Ingress Controller, AWS LoadBalancer                             |
 | Configuration          | ConfigMap, Secret                                                      |
 | Storage                | PersistentVolumeClaim for local Kubernetes, emptyDir for EKS demo mode |
@@ -261,6 +268,10 @@ The backend deployment was scaled by Kubernetes HPA from 2 replicas to 6 replica
 #### GitHub Actions CI/CD Workflow Runs
 
 ![GitHub Actions CI/CD Success](screenshots/github-actions-cicd-success.png)
+
+#### GitHub Actions Security Scan and Terraform Validation
+
+![GitHub Actions Security Scan Success](screenshots/github-actions-security-scan-success.png)
 
 ---
 
@@ -683,21 +694,39 @@ curl http://<aws-loadbalancer-dns>/api/analytics/summary
 
 CloudCart includes a GitHub Actions CI/CD pipeline integrated with AWS using OpenID Connect.
 
-The pipeline builds Docker images, authenticates to AWS securely without long-lived access keys, pushes images to Amazon ECR, and supports optional deployment to Amazon EKS.
+The pipeline validates Terraform configuration, builds Docker images, scans container images with Trivy, authenticates to AWS securely without long-lived access keys, pushes images to Amazon ECR, and supports optional deployment to Amazon EKS.
 
 ### CI Pipeline
 
-On every push to the `main` branch affecting the backend, frontend, Docker Compose file, Kubernetes AWS manifests, or workflow configuration, GitHub Actions performs the following steps:
+On every push to the `main` branch affecting the backend, frontend, Terraform files, Kubernetes AWS manifests, Docker Compose file, or workflow configuration, GitHub Actions performs the following steps:
 
 * Checks out the repository.
+* Runs Terraform formatting validation.
+* Initializes Terraform without backend for CI validation.
+* Validates the Terraform configuration.
 * Authenticates to AWS using GitHub Actions OIDC.
 * Assumes a dedicated IAM role in AWS.
 * Logs in to Amazon ECR.
 * Builds the backend Docker image.
 * Builds the frontend Docker image.
+* Scans backend and frontend images with Trivy.
 * Tags both images with `latest`.
 * Tags both images with the Git commit SHA.
 * Pushes both images to Amazon ECR.
+
+### CI Quality Gate
+
+The pipeline includes a quality gate before publishing images to Amazon ECR.
+
+The quality gate performs:
+
+* Terraform formatting validation.
+* Terraform initialization without backend for CI validation.
+* Terraform configuration validation.
+* Backend Docker image build.
+* Frontend Docker image build.
+* Trivy vulnerability scanning for backend and frontend images.
+* Image publishing to Amazon ECR only after successful build and scan stages.
 
 ### CD Pipeline
 
@@ -733,6 +762,8 @@ This makes each deployment traceable to a specific source code version.
 ![GitHub Actions ECR Success](screenshots/github-actions-ecr-success.png)
 
 ![GitHub Actions CI/CD Success](screenshots/github-actions-cicd-success.png)
+
+![GitHub Actions Security Scan Success](screenshots/github-actions-security-scan-success.png)
 
 ---
 
@@ -802,6 +833,7 @@ cloudcart-kubernetes-devops-platform/
 │   ├── eks-top-pods.png
 │   ├── github-actions-cicd-success.png
 │   ├── github-actions-ecr-success.png
+│   ├── github-actions-security-scan-success.png
 │   ├── hpa-scaled-to-6-replicas.png
 │   ├── ingress-cloudcart-local.png
 │   ├── kubernetes-pods-running.png
@@ -833,10 +865,13 @@ This project demonstrates hands-on DevOps, Kubernetes, AWS, and CI/CD skills, in
 * Performing load testing to validate scaling behavior.
 * Creating AWS infrastructure using Terraform.
 * Managing Terraform state remotely with Amazon S3.
+* Validating Terraform configuration in CI before deployment.
 * Creating and using Amazon ECR repositories.
 * Deploying containerized workloads to Amazon EKS.
 * Authenticating GitHub Actions to AWS using OIDC.
 * Building and pushing Docker images automatically using GitHub Actions.
+* Scanning container images with Trivy before publishing to ECR.
+* Adding a CI quality gate before image release.
 * Supporting optional manual CD deployment to Amazon EKS.
 * Verifying Kubernetes workloads, services, metrics, and autoscaling in the cloud.
 
@@ -844,7 +879,7 @@ This project demonstrates hands-on DevOps, Kubernetes, AWS, and CI/CD skills, in
 
 ## Production Roadmap
 
-The current EKS deployment proves that CloudCart can run successfully on AWS using Terraform-managed infrastructure, ECR-hosted images, Kubernetes workloads, AWS LoadBalancer exposure, GitHub Actions CI/CD, and HPA autoscaling.
+The current EKS deployment proves that CloudCart can run successfully on AWS using Terraform-managed infrastructure, ECR-hosted images, Kubernetes workloads, AWS LoadBalancer exposure, GitHub Actions CI/CD, Trivy security scanning, and HPA autoscaling.
 
 Future production improvements include:
 
@@ -856,7 +891,7 @@ Future production improvements include:
 * Add centralized monitoring with Prometheus and Grafana.
 * Add log aggregation using CloudWatch, ELK, Loki, or OpenSearch.
 * Add network hardening using private subnets and least-privilege security groups.
-* Add vulnerability scanning and image scanning for container security.
+* Add SBOM generation, image signing, and policy enforcement for container supply-chain security.
 
 ---
 
@@ -868,6 +903,7 @@ Future production improvements include:
 * The CI/CD pipeline assumes a dedicated IAM role with scoped permissions.
 * Terraform remote state is configured with an encrypted S3 backend, bucket versioning, public access blocking, and S3 native state locking using `use_lockfile = true`.
 * Terraform state files, Terraform plan files, and the `.terraform/` directory should not be committed to the repository.
+* Container images are scanned with Trivy during CI before being published to Amazon ECR.
 
 ---
 
@@ -899,6 +935,6 @@ The Amazon ECR repositories and S3 Terraform backend can remain available becaus
 
 ## CV Summary
 
-CloudCart is a production-style DevOps project demonstrating Docker, Kubernetes, AWS EKS, Terraform, Amazon ECR, GitHub Actions CI/CD, GitHub OIDC, PostgreSQL, LoadBalancer exposure, health checks, metrics, and CPU-based autoscaling.
+CloudCart is a production-style DevOps project demonstrating Docker, Kubernetes, AWS EKS, Terraform, Amazon ECR, GitHub Actions CI/CD, GitHub OIDC, Trivy security scanning, PostgreSQL, LoadBalancer exposure, health checks, metrics, and CPU-based autoscaling.
 
-The project proves hands-on experience with full-stack containerization, Kubernetes workloads, service discovery, configuration management, persistent and temporary storage strategies, ingress/load balancer exposure, infrastructure as code, remote Terraform state management, ECR image publishing, cloud deployment, secure CI/CD automation, and HPA autoscaling.
+The project proves hands-on experience with full-stack containerization, Kubernetes workloads, service discovery, configuration management, persistent and temporary storage strategies, ingress/load balancer exposure, infrastructure as code, remote Terraform state management, ECR image publishing, cloud deployment, secure CI/CD automation, container image vulnerability scanning, CI quality gates, and HPA autoscaling.
