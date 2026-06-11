@@ -1,4 +1,4 @@
-﻿data "aws_availability_zones" "available" {
+data "aws_availability_zones" "available" {
   state = "available"
 }
 
@@ -31,9 +31,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                        = "${var.project_name}-public-subnet-${count.index + 1}"
-    Project                     = var.project_name
-    "kubernetes.io/role/elb"    = "1"
+    Name                                        = "${var.project_name}-public-subnet-${count.index + 1}"
+    Project                                     = var.project_name
+    "kubernetes.io/role/elb"                    = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }

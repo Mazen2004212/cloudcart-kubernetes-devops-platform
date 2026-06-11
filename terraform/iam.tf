@@ -1,4 +1,4 @@
-﻿resource "aws_iam_role" "eks_cluster_role" {
+resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.project_name}-eks-cluster-role"
 
   assume_role_policy = jsonencode({
