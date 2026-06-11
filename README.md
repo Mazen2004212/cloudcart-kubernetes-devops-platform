@@ -23,6 +23,7 @@ The project demonstrates the complete lifecycle of a cloud-native application: c
 * [Project Highlights](#project-highlights)
 * [Architecture](#architecture)
 * [Tech Stack](#tech-stack)
+* [Tools and Technologies](#tools-and-technologies)
 * [Screenshots](#screenshots)
 * [Application Features](#application-features)
 * [API Endpoints](#api-endpoints)
@@ -68,7 +69,7 @@ The project demonstrates the complete lifecycle of a cloud-native application: c
 * Added Terraform formatting and validation checks in CI.
 * Added Trivy vulnerability scanning for backend and frontend container images.
 * Added optional manual CD deployment to EKS using GitHub Actions workflow dispatch.
-* Added proof screenshots for local Kubernetes, AWS EKS, HPA, ECR publishing, and CI security scanning.
+* Added proof screenshots for local Kubernetes, AWS EKS, HPA, ECR publishing, CI/CD, and CI security scanning.
 
 ---
 
@@ -195,6 +196,28 @@ GitHub Actions
 
 ---
 
+## Tools and Technologies
+
+| Category               | Tools                                                |
+| ---------------------- | ---------------------------------------------------- |
+| Containerization       | Docker, Docker Compose                               |
+| Orchestration          | Kubernetes, Amazon EKS                               |
+| Infrastructure as Code | Terraform                                            |
+| Cloud Platform         | AWS                                                  |
+| Container Registry     | Amazon ECR                                           |
+| CI/CD                  | GitHub Actions                                       |
+| Authentication         | GitHub Actions OIDC, AWS IAM                         |
+| Security Scanning      | Trivy                                                |
+| Frontend               | React, Vite, NGINX                                   |
+| Backend                | Python, Flask, SQLAlchemy, Gunicorn                  |
+| Database               | PostgreSQL                                           |
+| Networking             | AWS LoadBalancer, NGINX Ingress, Kubernetes Services |
+| Autoscaling            | Metrics Server, Horizontal Pod Autoscaler            |
+| State Management       | Amazon S3 Terraform Remote Backend                   |
+| CLI Tools              | AWS CLI, kubectl, Terraform CLI, Docker CLI, Git     |
+
+---
+
 ## Screenshots
 
 ### Local Kubernetes Deployment
@@ -215,6 +238,10 @@ GitHub Actions
 
 ![Kubernetes Ingress](screenshots/ingress-cloudcart-local.png)
 
+#### API Health and Readiness Checks
+
+![API Health Checks](screenshots/api-health-ready-checks.png)
+
 #### HPA Scaling: Backend Replicas Scaled from 2 to 6
 
 ![HPA Scaling](screenshots/hpa-scaled-to-6-replicas.png)
@@ -222,10 +249,6 @@ GitHub Actions
 #### Pod Resource Usage During Load Test
 
 ![Top Pods](screenshots/top-pods-load-test.png)
-
-#### API Health and Readiness Checks
-
-![API Health Checks](screenshots/api-health-ready-checks.png)
 
 ---
 
