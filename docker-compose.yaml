@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudcart-postgres
+    environment:
+      POSTGRES_DB: cloudcart
+      POSTGRES_USER: cloudcart_user
+      POSTGRES_PASSWORD: cloudcart_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - cloudcart_postgres_data:/var/lib/postgresql/data
+    networks:
+      - cloudcart-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudcart_user -d cloudcart"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: cloudcart-backend
+    environment:
+      APP_NAME: CloudCart API
+      ENVIRONMENT: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cloudcart
+      DB_USER: cloudcart_user
+      DB_PASSWORD: cloudcart_pass
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudcart-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: cloudcart-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cloudcart-network
+
+volumes:
+  cloudcart_postgres_data:
+
+networks:
+  cloudcart-network:
+    driver: bridge

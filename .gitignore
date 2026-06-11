@@ -1,0 +1,31 @@
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Python
+backend/__pycache__/
+backend/**/*.pyc
+backend/.env
+backend/venv/
+backend/.venv/
+
+# Docker / local
+*.log
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform future files
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+terraform/*.tfvars
