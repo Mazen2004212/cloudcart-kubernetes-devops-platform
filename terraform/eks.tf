@@ -55,3 +55,27 @@ resource "aws_eks_node_group" "main" {
     Project = var.project_name
   }
 }
+
+resource "aws_eks_access_entry" "github_actions" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = "arn:aws:iam::766696030212:role/cloudcart-github-actions-ecr-role"
+  type          = "STANDARD"
+
+  depends_on = [
+    aws_eks_cluster.main
+  ]
+}
+
+resource "aws_eks_access_policy_association" "github_actions_admin" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_eks_access_entry.github_actions.principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [
+    aws_eks_access_entry.github_actions
+  ]
+}

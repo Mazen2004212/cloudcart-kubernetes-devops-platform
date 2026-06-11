@@ -1,4 +1,4 @@
-﻿name: Build and Push Docker Images to ECR
+﻿name: Build, Push, and Deploy CloudCart
 
 on:
   push:
@@ -7,9 +7,19 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'k8s-aws/**'
       - '.github/workflows/**'
       - 'docker-compose.yaml'
   workflow_dispatch:
+    inputs:
+      deploy_to_eks:
+        description: 'Deploy to EKS after pushing images?'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   id-token: write
@@ -18,6 +28,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   AWS_ACCOUNT_ID: 766696030212
+  EKS_CLUSTER_NAME: cloudcart-eks
   BACKEND_ECR_REPOSITORY: cloudcart-backend
   FRONTEND_ECR_REPOSITORY: cloudcart-frontend
 
@@ -25,6 +36,9 @@ jobs:
   build-and-push:
     name: Build and Push Images
     runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ github.sha }}
 
     steps:
       - name: Checkout repository
@@ -52,3 +66,57 @@ jobs:
           docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPOSITORY:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPOSITORY:$GITHUB_SHA
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPOSITORY:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPOSITORY:$GITHUB_SHA
+
+  deploy-to-eks:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to_eks == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::766696030212:role/cloudcart-github-actions-ecr-role
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+
+      - name: Deploy Kubernetes manifests
+        run: |
+          kubectl apply -f k8s-aws/00-namespace.yaml
+          kubectl apply -f k8s-aws/01-configmap.yaml
+          kubectl apply -f k8s-aws/02-secret.yaml
+          kubectl apply -f k8s-aws/03-postgres.yaml
+          kubectl apply -f k8s-aws/04-backend.yaml
+          kubectl apply -f k8s-aws/04b-backend-alias.yaml
+          kubectl apply -f k8s-aws/05-frontend.yaml
+          kubectl apply -f k8s-aws/07-hpa.yaml
+
+      - name: Update backend image to commit SHA
+        run: |
+          kubectl set image deployment/cloudcart-backend \
+            backend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_ECR_REPOSITORY:$GITHUB_SHA \
+            -n cloudcart
+
+      - name: Update frontend image to commit SHA
+        run: |
+          kubectl set image deployment/cloudcart-frontend \
+            frontend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPOSITORY:$GITHUB_SHA \
+            -n cloudcart
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/cloudcart-backend -n cloudcart --timeout=180s
+          kubectl rollout status deployment/cloudcart-frontend -n cloudcart --timeout=180s
+
+      - name: Show deployment status
+        run: |
+          kubectl get pods -n cloudcart
+          kubectl get svc -n cloudcart
+          kubectl get hpa -n cloudcart
