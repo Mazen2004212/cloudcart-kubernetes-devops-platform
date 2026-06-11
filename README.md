@@ -741,7 +741,41 @@ This project demonstrates hands-on DevOps, Kubernetes, and AWS skills, including
 * Verifying Kubernetes workloads, services, metrics, and autoscaling in the cloud.
 
 ---
+## CI/CD Pipeline
 
+CloudCart includes a GitHub Actions CI pipeline that builds and pushes Docker images to Amazon ECR automatically.
+
+The pipeline is triggered on pushes to the `main` branch when changes are made to the backend, frontend, Docker Compose file, or workflow configuration.
+
+### CI Pipeline Workflow
+
+The GitHub Actions workflow performs the following steps:
+
+* Checks out the repository.
+* Authenticates to AWS using GitHub OIDC.
+* Logs in to Amazon ECR.
+* Builds the backend Docker image.
+* Builds the frontend Docker image.
+* Tags both images with `latest`.
+* Tags both images with the Git commit SHA.
+* Pushes both images to Amazon ECR.
+
+### AWS Authentication
+
+The pipeline uses GitHub Actions OIDC authentication instead of long-lived AWS access keys.
+
+This improves security by allowing GitHub Actions to assume a dedicated IAM role with temporary credentials.
+
+### ECR Image Tags
+
+Each successful pipeline run pushes two tags for each image:
+
+* `latest`
+* Git commit SHA
+
+This makes deployments traceable to a specific source code version.
+
+---
 ## Production Roadmap
 
 The current EKS deployment proves that CloudCart can run successfully on AWS using Terraform-managed infrastructure, ECR-hosted images, Kubernetes workloads, AWS LoadBalancer exposure, and HPA autoscaling.
