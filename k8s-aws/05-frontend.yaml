@@ -1,0 +1,66 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudcart-frontend
+  namespace: cloudcart
+  labels:
+    app: cloudcart-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudcart-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudcart-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: 766696030212.dkr.ecr.us-east-1.amazonaws.com/cloudcart-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudcart-frontend
+  namespace: cloudcart
+  labels:
+    app: cloudcart-frontend
+spec:
+  type: LoadBalancer
+  selector:
+    app: cloudcart-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

@@ -361,6 +361,68 @@ kubectl delete pod load-generator -n cloudcart
 
 ---
 
+## AWS EKS Deployment
+
+CloudCart was also deployed successfully on Amazon EKS using Terraform-managed infrastructure and Docker images stored in Amazon ECR.
+
+### AWS Infrastructure Provisioned with Terraform
+
+The AWS environment includes:
+
+- Custom VPC
+- Public subnets across two Availability Zones
+- Internet Gateway
+- Route tables
+- IAM roles for EKS control plane and worker nodes
+- Amazon EKS cluster
+- Managed node group
+- Amazon ECR repositories for frontend and backend images
+
+### ECR Images
+
+The application images were built locally, tagged, and pushed to Amazon ECR:
+
+- `cloudcart-backend:latest`
+- `cloudcart-frontend:latest`
+
+### EKS Deployment Proof
+
+#### EKS Worker Nodes Ready
+
+![EKS Nodes Ready](screenshots/eks-nodes-ready.png)
+
+#### CloudCart Pods Running on EKS
+
+![EKS CloudCart Pods](screenshots/eks-cloudcart-pods-running.png)
+
+#### AWS LoadBalancer Service
+
+![EKS LoadBalancer Service](screenshots/eks-loadbalancer-service.png)
+
+#### API Health and Readiness from AWS LoadBalancer
+
+![EKS API Health Ready](screenshots/eks-api-health-ready.png)
+
+#### HPA Autoscaling on EKS
+
+The backend deployment was scaled by Kubernetes HPA from 2 replicas to 6 replicas under load.
+
+![EKS HPA Scaled](screenshots/eks-hpa-scaled-to-6.png)
+
+#### Pod Metrics on EKS
+
+![EKS Top Pods](screenshots/eks-top-pods.png)
+
+### Current AWS Database Mode
+
+For the EKS demo deployment, PostgreSQL runs inside Kubernetes using temporary `emptyDir` storage to keep the deployment cost-aware and simple.
+
+For a production-grade AWS deployment, the database layer can be upgraded to:
+
+- Amazon RDS PostgreSQL
+- EBS-backed PersistentVolume using the AWS EBS CSI Driver
+
+---
 ## Project Structure
 
 ```text
