@@ -1,18 +1,19 @@
-# CloudCart — Production-Ready 3-Tier Kubernetes Platform
+# CloudCart — Production-Ready 3-Tier Kubernetes DevOps Platform
 
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Orchestration-326CE5?style=for-the-badge\&logo=kubernetes\&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Containerization-2496ED?style=for-the-badge\&logo=docker\&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-EKS-FF9900?style=for-the-badge\&logo=amazonaws\&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge\&logo=terraform\&logoColor=white)
 ![Amazon ECR](https://img.shields.io/badge/Amazon_ECR-Container_Registry-FF9900?style=for-the-badge\&logo=amazonaws\&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge\&logo=githubactions\&logoColor=white)
 ![React](https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge\&logo=react\&logoColor=black)
 ![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge\&logo=flask\&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge\&logo=postgresql\&logoColor=white)
 ![NGINX](https://img.shields.io/badge/NGINX-Ingress-009639?style=for-the-badge\&logo=nginx\&logoColor=white)
 
-CloudCart is a production-style 3-tier DevOps platform built with React, Flask, PostgreSQL, Docker, Kubernetes, Terraform, Amazon ECR, and Amazon EKS.
+CloudCart is a production-style 3-tier DevOps platform built with React, Flask, PostgreSQL, Docker, Kubernetes, Terraform, Amazon ECR, Amazon EKS, and GitHub Actions.
 
-The project demonstrates the complete lifecycle of a cloud-native application: containerization, local orchestration with Docker Compose, Kubernetes deployment, ingress routing, health and readiness checks, metrics exposure, CPU-based autoscaling, Terraform-based AWS infrastructure provisioning, ECR image publishing, and deployment to an EKS cluster using an AWS LoadBalancer.
+The project demonstrates the complete lifecycle of a cloud-native application: containerization, local orchestration with Docker Compose, Kubernetes deployment, ingress routing, health and readiness checks, metrics exposure, CPU-based autoscaling, Terraform-based AWS infrastructure provisioning, ECR image publishing, secure CI/CD with GitHub Actions OIDC, and optional deployment to Amazon EKS.
 
 ---
 
@@ -30,9 +31,12 @@ The project demonstrates the complete lifecycle of a cloud-native application: c
 * [Horizontal Pod Autoscaling](#horizontal-pod-autoscaling)
 * [AWS EKS Deployment](#aws-eks-deployment)
 * [Terraform Infrastructure](#terraform-infrastructure)
+* [CI/CD Pipeline](#cicd-pipeline)
 * [Project Structure](#project-structure)
 * [What This Project Demonstrates](#what-this-project-demonstrates)
 * [Production Roadmap](#production-roadmap)
+* [Security Notes](#security-notes)
+* [Cost Control](#cost-control)
 * [CV Summary](#cv-summary)
 
 ---
@@ -52,11 +56,15 @@ The project demonstrates the complete lifecycle of a cloud-native application: c
 * Configured Horizontal Pod Autoscaling for the backend.
 * Performed load testing that scaled backend replicas from 2 to 6.
 * Provisioned AWS infrastructure using Terraform.
+* Configured Terraform remote state using an encrypted S3 backend with S3 native locking.
 * Created Amazon ECR repositories for backend and frontend container images.
 * Tagged and pushed Docker images to Amazon ECR.
 * Deployed CloudCart successfully to Amazon EKS.
 * Exposed the EKS deployment externally using an AWS LoadBalancer service.
 * Verified HPA autoscaling on EKS with backend replicas scaling from 2 to 6.
+* Built a GitHub Actions CI pipeline using AWS OIDC without long-lived access keys.
+* Automated Docker image build and push to Amazon ECR.
+* Added optional manual CD deployment to EKS using GitHub Actions workflow dispatch.
 
 ---
 
@@ -132,7 +140,9 @@ AWS VPC
 Amazon ECR
     |
     |-- cloudcart-backend:latest
+    |-- cloudcart-backend:<commit-sha>
     |-- cloudcart-frontend:latest
+    |-- cloudcart-frontend:<commit-sha>
 
 Amazon EKS
     |
@@ -143,6 +153,13 @@ Amazon EKS
     |-- Secret
     |-- HPA
     |-- Metrics Server
+
+GitHub Actions
+    |
+    |-- OIDC authentication to AWS
+    |-- Docker build
+    |-- ECR push
+    |-- Optional EKS deployment
 ```
 
 ---
@@ -158,6 +175,9 @@ Amazon EKS
 | Container Registry     | Amazon ECR                                                             |
 | Orchestration          | Kubernetes, Amazon EKS                                                 |
 | Infrastructure as Code | Terraform                                                              |
+| Terraform State        | Amazon S3 remote backend with native state locking                     |
+| CI/CD                  | GitHub Actions                                                         |
+| Cloud Authentication   | GitHub Actions OIDC, AWS IAM Role                                      |
 | Routing                | NGINX Ingress Controller, AWS LoadBalancer                             |
 | Configuration          | ConfigMap, Secret                                                      |
 | Storage                | PersistentVolumeClaim for local Kubernetes, emptyDir for EKS demo mode |
@@ -229,6 +249,18 @@ The backend deployment was scaled by Kubernetes HPA from 2 replicas to 6 replica
 #### Pod Metrics on EKS
 
 ![EKS Top Pods](screenshots/eks-top-pods.png)
+
+---
+
+### GitHub Actions CI/CD
+
+#### GitHub Actions ECR Pipeline Success
+
+![GitHub Actions ECR Success](screenshots/github-actions-ecr-success.png)
+
+#### GitHub Actions CI/CD Workflow Runs
+
+![GitHub Actions CI/CD Success](screenshots/github-actions-cicd-success.png)
 
 ---
 
@@ -509,13 +541,20 @@ The AWS environment includes:
 * Amazon EKS cluster
 * EKS managed node group
 * Amazon ECR repositories for frontend and backend images
+* EKS access entry for the GitHub Actions deployment role
 
 ### ECR Images
 
-The application images were built locally, tagged, and pushed to Amazon ECR:
+The application images are built, tagged, and pushed to Amazon ECR.
+
+Images pushed by the CI pipeline include:
 
 * `cloudcart-backend:latest`
+* `cloudcart-backend:<commit-sha>`
 * `cloudcart-frontend:latest`
+* `cloudcart-frontend:<commit-sha>`
+
+Using commit SHA tags makes every image traceable to a specific Git commit.
 
 ### EKS Kubernetes Resources
 
@@ -551,15 +590,16 @@ Terraform is used to provision the AWS infrastructure required for the EKS deplo
 
 ### Terraform Components
 
-| File           | Purpose                                                         |
-| -------------- | --------------------------------------------------------------- |
-| `versions.tf`  | Defines Terraform and provider versions                         |
-| `provider.tf`  | Configures the AWS provider                                     |
-| `variables.tf` | Stores reusable input variables                                 |
-| `vpc.tf`       | Creates VPC, public subnets, internet gateway, and route tables |
-| `iam.tf`       | Creates IAM roles and policy attachments for EKS                |
-| `eks.tf`       | Creates the EKS cluster and managed node group                  |
-| `outputs.tf`   | Exposes useful infrastructure outputs                           |
+| File           | Purpose                                                                    |
+| -------------- | -------------------------------------------------------------------------- |
+| `backend.tf`   | Configures the S3 remote backend and native state locking                  |
+| `versions.tf`  | Defines Terraform and provider versions                                    |
+| `provider.tf`  | Configures the AWS provider                                                |
+| `variables.tf` | Stores reusable input variables                                            |
+| `vpc.tf`       | Creates VPC, public subnets, internet gateway, and route tables            |
+| `iam.tf`       | Creates IAM roles and policy attachments for EKS                           |
+| `eks.tf`       | Creates the EKS cluster, managed node group, and GitHub Actions EKS access |
+| `outputs.tf`   | Exposes useful infrastructure outputs                                      |
 
 ### Terraform Workflow
 
@@ -570,17 +610,18 @@ terraform validate
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
+
 ### Remote Terraform State
 
 Terraform is configured to use an Amazon S3 remote backend for centralized state management.
 
 The backend includes:
 
-- S3 bucket for Terraform state storage
-- State encryption enabled
-- S3 bucket versioning enabled
-- S3 native state locking using `use_lockfile = true`
-- Public access blocked on the state bucket
+* S3 bucket for Terraform state storage
+* State encryption enabled
+* S3 bucket versioning enabled
+* S3 native state locking using `use_lockfile = true`
+* Public access blocked on the state bucket
 
 This makes the infrastructure workflow closer to production standards and avoids relying on local-only Terraform state files.
 
@@ -591,7 +632,7 @@ aws eks update-kubeconfig --region us-east-1 --name cloudcart-eks
 kubectl get nodes
 ```
 
-### Deploy CloudCart to EKS
+### Deploy CloudCart to EKS Manually
 
 ```bash
 kubectl apply -f k8s-aws/00-namespace.yaml
@@ -636,16 +677,62 @@ curl http://<aws-loadbalancer-dns>/api/ready
 curl http://<aws-loadbalancer-dns>/api/analytics/summary
 ```
 
-### Cost Control
+---
 
-EKS and EC2 worker nodes may generate ongoing AWS charges while running.
+## CI/CD Pipeline
 
-After finishing the demo, destroy the Terraform-managed infrastructure:
+CloudCart includes a GitHub Actions CI/CD pipeline integrated with AWS using OpenID Connect.
 
-```bash
-cd terraform
-terraform destroy
-```
+The pipeline builds Docker images, authenticates to AWS securely without long-lived access keys, pushes images to Amazon ECR, and supports optional deployment to Amazon EKS.
+
+### CI Pipeline
+
+On every push to the `main` branch affecting the backend, frontend, Docker Compose file, Kubernetes AWS manifests, or workflow configuration, GitHub Actions performs the following steps:
+
+* Checks out the repository.
+* Authenticates to AWS using GitHub Actions OIDC.
+* Assumes a dedicated IAM role in AWS.
+* Logs in to Amazon ECR.
+* Builds the backend Docker image.
+* Builds the frontend Docker image.
+* Tags both images with `latest`.
+* Tags both images with the Git commit SHA.
+* Pushes both images to Amazon ECR.
+
+### CD Pipeline
+
+The workflow also includes an optional manual deployment job using `workflow_dispatch`.
+
+When triggered manually with `deploy_to_eks=true`, the pipeline:
+
+* Updates kubeconfig for the EKS cluster.
+* Applies the Kubernetes manifests from `k8s-aws/`.
+* Updates backend and frontend deployments to use the Git commit SHA image tag.
+* Waits for Kubernetes rollout completion.
+* Displays pods, services, and HPA status.
+
+The deployment step is intentionally manual because the EKS cluster is created only during demos to control AWS costs.
+
+### AWS Authentication
+
+The pipeline uses GitHub Actions OIDC authentication instead of long-lived AWS access keys.
+
+This improves security by allowing GitHub Actions to assume a dedicated IAM role with temporary credentials.
+
+### ECR Image Tags
+
+Each successful pipeline run pushes two tags for each image:
+
+* `latest`
+* Git commit SHA
+
+This makes each deployment traceable to a specific source code version.
+
+### GitHub Actions Proof
+
+![GitHub Actions ECR Success](screenshots/github-actions-ecr-success.png)
+
+![GitHub Actions CI/CD Success](screenshots/github-actions-cicd-success.png)
 
 ---
 
@@ -653,6 +740,10 @@ terraform destroy
 
 ```text
 cloudcart-kubernetes-devops-platform/
+│
+├── .github/
+│   └── workflows/
+│       └── docker-build-push.yml
 │
 ├── backend/
 │   ├── app/
@@ -685,9 +776,11 @@ cloudcart-kubernetes-devops-platform/
 │   ├── 04-backend.yaml
 │   ├── 04b-backend-alias.yaml
 │   ├── 05-frontend.yaml
+│   ├── 06-ingress.yaml
 │   └── 07-hpa.yaml
 │
 ├── terraform/
+│   ├── backend.tf
 │   ├── versions.tf
 │   ├── provider.tf
 │   ├── variables.tf
@@ -695,22 +788,25 @@ cloudcart-kubernetes-devops-platform/
 │   ├── iam.tf
 │   ├── eks.tf
 │   ├── outputs.tf
+│   ├── .terraform.lock.hcl
 │   └── .gitignore
 │
 ├── screenshots/
+│   ├── api-health-ready-checks.png
 │   ├── dashboard-cloudcart-local.png
+│   ├── eks-api-health-ready.png
+│   ├── eks-cloudcart-pods-running.png
+│   ├── eks-hpa-scaled-to-6.png
+│   ├── eks-loadbalancer-service.png
+│   ├── eks-nodes-ready.png
+│   ├── eks-top-pods.png
+│   ├── github-actions-cicd-success.png
+│   ├── github-actions-ecr-success.png
+│   ├── hpa-scaled-to-6-replicas.png
+│   ├── ingress-cloudcart-local.png
 │   ├── kubernetes-pods-running.png
 │   ├── kubernetes-services.png
-│   ├── ingress-cloudcart-local.png
-│   ├── hpa-scaled-to-6-replicas.png
-│   ├── top-pods-load-test.png
-│   ├── api-health-ready-checks.png
-│   ├── eks-nodes-ready.png
-│   ├── eks-cloudcart-pods-running.png
-│   ├── eks-loadbalancer-service.png
-│   ├── eks-api-health-ready.png
-│   ├── eks-hpa-scaled-to-6.png
-│   └── eks-top-pods.png
+│   └── top-pods-load-test.png
 │
 ├── docker-compose.yaml
 ├── README.md
@@ -721,7 +817,7 @@ cloudcart-kubernetes-devops-platform/
 
 ## What This Project Demonstrates
 
-This project demonstrates hands-on DevOps, Kubernetes, and AWS skills, including:
+This project demonstrates hands-on DevOps, Kubernetes, AWS, and CI/CD skills, including:
 
 * Containerizing multi-service applications.
 * Running full-stack applications locally using Docker Compose.
@@ -736,49 +832,19 @@ This project demonstrates hands-on DevOps, Kubernetes, and AWS skills, including
 * Using Metrics Server and HPA for autoscaling.
 * Performing load testing to validate scaling behavior.
 * Creating AWS infrastructure using Terraform.
+* Managing Terraform state remotely with Amazon S3.
 * Creating and using Amazon ECR repositories.
 * Deploying containerized workloads to Amazon EKS.
+* Authenticating GitHub Actions to AWS using OIDC.
+* Building and pushing Docker images automatically using GitHub Actions.
+* Supporting optional manual CD deployment to Amazon EKS.
 * Verifying Kubernetes workloads, services, metrics, and autoscaling in the cloud.
 
 ---
-## CI/CD Pipeline
 
-CloudCart includes a GitHub Actions CI pipeline that builds and pushes Docker images to Amazon ECR automatically.
-
-The pipeline is triggered on pushes to the `main` branch when changes are made to the backend, frontend, Docker Compose file, or workflow configuration.
-
-### CI Pipeline Workflow
-
-The GitHub Actions workflow performs the following steps:
-
-* Checks out the repository.
-* Authenticates to AWS using GitHub OIDC.
-* Logs in to Amazon ECR.
-* Builds the backend Docker image.
-* Builds the frontend Docker image.
-* Tags both images with `latest`.
-* Tags both images with the Git commit SHA.
-* Pushes both images to Amazon ECR.
-
-### AWS Authentication
-
-The pipeline uses GitHub Actions OIDC authentication instead of long-lived AWS access keys.
-
-This improves security by allowing GitHub Actions to assume a dedicated IAM role with temporary credentials.
-
-### ECR Image Tags
-
-Each successful pipeline run pushes two tags for each image:
-
-* `latest`
-* Git commit SHA
-
-This makes deployments traceable to a specific source code version.
-
----
 ## Production Roadmap
 
-The current EKS deployment proves that CloudCart can run successfully on AWS using Terraform-managed infrastructure, ECR-hosted images, Kubernetes workloads, AWS LoadBalancer exposure, and HPA autoscaling.
+The current EKS deployment proves that CloudCart can run successfully on AWS using Terraform-managed infrastructure, ECR-hosted images, Kubernetes workloads, AWS LoadBalancer exposure, GitHub Actions CI/CD, and HPA autoscaling.
 
 Future production improvements include:
 
@@ -786,10 +852,9 @@ Future production improvements include:
 * Add AWS EBS CSI Driver for persistent Kubernetes storage.
 * Deploy AWS Load Balancer Controller for ALB-based ingress.
 * Add Route53 DNS and ACM-managed TLS certificates.
-* Configure GitHub Actions CI/CD with AWS OIDC authentication.
-* Add Terraform remote state using S3 and DynamoDB.
+* Add Argo CD for GitOps-based Kubernetes delivery.
 * Add centralized monitoring with Prometheus and Grafana.
-* Add log aggregation using CloudWatch, ELK, or OpenSearch.
+* Add log aggregation using CloudWatch, ELK, Loki, or OpenSearch.
 * Add network hardening using private subnets and least-privilege security groups.
 * Add vulnerability scanning and image scanning for container security.
 
@@ -799,14 +864,41 @@ Future production improvements include:
 
 * Kubernetes Secrets are used for database credentials.
 * No AWS access keys or secret keys should be committed to the repository.
-* Terraform state files are ignored because they may contain sensitive infrastructure data.
-* For production, Terraform remote state should be stored in S3 with DynamoDB state locking.
-* For CI/CD, GitHub Actions should authenticate to AWS using OIDC instead of long-lived access keys.
+* GitHub Actions authenticates to AWS using OIDC instead of long-lived access keys.
+* The CI/CD pipeline assumes a dedicated IAM role with scoped permissions.
+* Terraform remote state is configured with an encrypted S3 backend, bucket versioning, public access blocking, and S3 native state locking using `use_lockfile = true`.
+* Terraform state files, Terraform plan files, and the `.terraform/` directory should not be committed to the repository.
+
+---
+
+## Cost Control
+
+AWS resources such as EKS clusters, EC2 worker nodes, and LoadBalancers can generate ongoing charges while running.
+
+For cost control, the EKS environment should be created only during demos and destroyed after validation.
+
+Create infrastructure:
+
+```bash
+cd terraform
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+Destroy infrastructure after the demo:
+
+```bash
+cd terraform
+terraform destroy
+```
+
+The Amazon ECR repositories and S3 Terraform backend can remain available because they are low-cost compared to EKS and EC2 worker nodes.
 
 ---
 
 ## CV Summary
 
-CloudCart is a production-style DevOps project demonstrating Docker, Kubernetes, AWS EKS, Terraform, Amazon ECR, PostgreSQL, LoadBalancer exposure, health checks, metrics, and CPU-based autoscaling.
+CloudCart is a production-style DevOps project demonstrating Docker, Kubernetes, AWS EKS, Terraform, Amazon ECR, GitHub Actions CI/CD, GitHub OIDC, PostgreSQL, LoadBalancer exposure, health checks, metrics, and CPU-based autoscaling.
 
-The project proves hands-on experience with full-stack containerization, Kubernetes workloads, service discovery, configuration management, persistent and temporary storage strategies, ingress/load balancer exposure, infrastructure as code, ECR image publishing, cloud deployment, and HPA autoscaling.
+The project proves hands-on experience with full-stack containerization, Kubernetes workloads, service discovery, configuration management, persistent and temporary storage strategies, ingress/load balancer exposure, infrastructure as code, remote Terraform state management, ECR image publishing, cloud deployment, secure CI/CD automation, and HPA autoscaling.
