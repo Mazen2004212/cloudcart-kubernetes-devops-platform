@@ -570,6 +570,19 @@ terraform validate
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
+### Remote Terraform State
+
+Terraform is configured to use an Amazon S3 remote backend for centralized state management.
+
+The backend includes:
+
+- S3 bucket for Terraform state storage
+- State encryption enabled
+- S3 bucket versioning enabled
+- S3 native state locking using `use_lockfile = true`
+- Public access blocked on the state bucket
+
+This makes the infrastructure workflow closer to production standards and avoids relying on local-only Terraform state files.
 
 ### Configure kubectl for EKS
 
